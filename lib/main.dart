@@ -193,6 +193,7 @@ class ZipImageReaderView extends StatelessWidget {
                       ),
                     ),
                   PopupMenuItem(
+                    value: 'exit',
                     child: ListTile(
                       leading: Icon(Icons.exit_to_app),
                       title: Text(AppLocalizations.of(context)!.exit),
