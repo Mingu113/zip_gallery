@@ -1,0 +1,12 @@
+{
+    "@@locale": "en",
+    "errorZipProcessing": "Error processing ZIP",
+    "errorZipNotFound" : "Error: ZIP file not found",
+    "appTitle" : "ZIP Gallery",
+    "chooseZIP" : "Choose ZIP file",
+    "sortGallery" : "Sort",
+    "sortGalleryDescription" : "The images will be sorted",
+    "closeView" : "Stop viewing",
+    "changeLocale" : "Change locale/language",
+    "exit" : "Exit"
+}

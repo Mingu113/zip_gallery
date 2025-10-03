@@ -1,0 +1,12 @@
+{
+    "@@locale": "vi",
+    "errorZipProcessing": "Lỗi khi xử lý tập tin ZIP",
+    "errorZipNotFound" : "Lỗi: Không tìm thấy tập tin ZIP",
+    "appTitle" : "Xem ảnh từ ZIP",
+    "chooseZIP" : "Chọn tập tin ZIP",
+    "sortGallery" : "Sắp xếp",
+    "sortGalleryDescription" : "Các hình ảnh sẽ được sắp xếp theo tên của tập tin",
+    "closeView" : "Ngừng xem",
+    "changeLocale" : "Đổi ngôn ngữ",
+    "exit" : "Thoát"
+}
