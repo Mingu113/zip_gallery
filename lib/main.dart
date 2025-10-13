@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zip_gallery/l10n/app_localizations.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -32,6 +33,11 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   List<ArchiveFile> images = [];
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  String? lastPath;
+  List<FileSystemEntity>? lastPathContents;
+
+  // KEYWORDS:
+  String get keyLastPath => "lastPath";
 
   @override
   void notifyListeners() {
@@ -43,6 +49,41 @@ class ZipImageReaderViewModel extends ChangeNotifier {
     _isLoading = loading;
     kPrint("Is loading: $isLoading");
     notifyListeners();
+  }
+
+  Future<void> getLastUsedPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    lastPath = prefs.getString(keyLastPath);
+  }
+
+  Future<void> setLastUsedPath(String path) async {
+    kPrint("Set last path $path");
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(keyLastPath, path);
+  }
+
+  Future<void> getDirectoryContent() async {
+    setLoading(true);
+    kPrint("Get Directoory contents");
+    await getLastUsedPath();
+    if (lastPath == null) {
+      setLoading(false);
+      return;
+    }
+    Directory directory = Directory(lastPath!);
+    List<FileSystemEntity> contents = await directory.list().toList();
+    List<FileSystemEntity> result = [];
+    for (var entity in contents) {
+      if (isEntityAZip(entity)) {
+        result.add(entity);
+      }
+    }
+    lastPathContents = result;
+    setLoading(false);
+  }
+
+  bool isEntityAZip(FileSystemEntity entity) {
+    return entity.path.toLowerCase().endsWith('zip');
   }
 
   Future<void> _extractImages(Archive archive) async {
@@ -68,14 +109,23 @@ class ZipImageReaderViewModel extends ChangeNotifier {
       kPrint("Picked file: ${file.path}");
       final bytes = await file.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
-      _extractImages(archive);
+      await _extractImages(archive);
+      await setLastUsedPath(getPathName(filePath));
     } catch (e) {
       throw Exception("Error processing ZIP: ${e.toString()}");
     }
   }
 
-  void clearImages() {
+  Future<void> clearImages() async {
     images.clear();
+    await getDirectoryContent();
+    notifyListeners();
+  }
+
+  Future<void> clearLastPathContents() async {
+    lastPath = null;
+    await setLastUsedPath("");
+    lastPathContents?.clear();
     notifyListeners();
   }
 
@@ -90,28 +140,40 @@ class ZipImageReaderViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  String getFileName(String filePath) {
+  static String getFileName(String filePath) {
     String file = filePath.split(Platform.pathSeparator).last;
     String result = file.substring(0, file.lastIndexOf('.'));
     return result;
   }
+
+  static String getPathName(String filePath) {
+    int end = filePath.lastIndexOf(Platform.pathSeparator);
+    String result = filePath.substring(0, end);
+    return result;
+  }
 }
 
-void kPrint(String message) {
+void kPrint(Object message) {
   if (kDebugMode) print(message);
 }
 
-class ZipImageReaderView extends StatelessWidget {
-  ZipImageReaderView({super.key});
+class ZipImageReaderView extends StatefulWidget {
+  const ZipImageReaderView({super.key});
 
+  @override
+  State<ZipImageReaderView> createState() => _ZipImageReaderViewState();
+}
+
+class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   final ZipImageReaderViewModel _viewModel = ZipImageReaderViewModel();
 
-  // void showSnackBar(String message) {
-  //   ScaffoldMessenger.of(
-  //     context,
-  //   ).showSnackBar(SnackBar(content: Text(message)));
-  // }
+  @override
+  void initState() {
+    _viewModel.getDirectoryContent();
+    super.initState();
+  }
 
+  // void showSnackBar(String message) {
   void _testChangeLocale(BuildContext context) {
     Locale currentLcoale = Localizations.localeOf(context);
     Locale newLocale = Locale('en');
@@ -123,7 +185,7 @@ class ZipImageReaderView extends StatelessWidget {
             (BuildContext context) => Localizations.override(
               context: context,
               locale: newLocale,
-              child: this,
+              child: ZipImageReaderView(),
             ),
       ),
     );
@@ -142,12 +204,34 @@ class ZipImageReaderView extends StatelessWidget {
     );
   }
 
+  Widget lastPathContentScreen() {
+    List<FileSystemEntity> contents = _viewModel.lastPathContents ?? [];
+    kPrint(contents.length);
+    return ListView.builder(
+      itemCount: contents.length,
+      padding: EdgeInsets.only(bottom: 8),
+      itemBuilder: (context, index) {
+        String filePath = contents[index].path;
+        return InkWell(
+          onTap: () => _viewModel.loadImageFromZip(filePath),
+          child: ListTile(
+            title: Text(ZipImageReaderViewModel.getFileName(filePath)),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _ui(BuildContext context) {
     if (_viewModel.isLoading) {
       kPrint("Is loading");
       return const Center(child: CircularProgressIndicator());
     } else if (_viewModel.images.isEmpty) {
       kPrint("Is empty");
+      if (_viewModel.lastPath != null) {
+        kPrint("Last path is not null");
+        return lastPathContentScreen();
+      }
       return Center(
         child: ElevatedButton(
           onPressed: () async => await chooseZip(),
@@ -192,6 +276,17 @@ class ZipImageReaderView extends StatelessWidget {
                         title: Text(AppLocalizations.of(context)!.closeView),
                       ),
                     ),
+                  if (_viewModel.images.isEmpty &&
+                      (_viewModel.lastPathContents ?? []).isNotEmpty)
+                    PopupMenuItem(
+                      value: 'clearLastPathContents',
+                      child: ListTile(
+                        leading: Icon(Icons.clear_all),
+                        title: Text(
+                          AppLocalizations.of(context)!.clearLastPathContents,
+                        ),
+                      ),
+                    ),
                   PopupMenuItem(
                     value: 'exit',
                     child: ListTile(
@@ -224,6 +319,9 @@ class ZipImageReaderView extends StatelessWidget {
                   break;
                 case 'locale':
                   _testChangeLocale(context);
+                  break;
+                case 'clearLastPathContents':
+                  await _viewModel.clearLastPathContents();
                   break;
               }
             },
@@ -394,12 +492,6 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
         },
         scrollPhysics: const BouncingScrollPhysics(),
         backgroundDecoration: const BoxDecoration(color: Colors.black),
-        // loadingBuilder:
-        //     (context, event) => Center(
-        //       child: CircularProgressIndicator(
-        //         value: event?.cumulativeBytesLoaded.toDouble() ?? 0,
-        //       ),
-        //     ),
       ),
     );
   }

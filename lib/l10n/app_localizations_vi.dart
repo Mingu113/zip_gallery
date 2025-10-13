@@ -35,4 +35,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get exit => 'Thoát';
+
+  @override
+  String get clearLastPathContents => 'Xóa danh sách tập tin';
 }

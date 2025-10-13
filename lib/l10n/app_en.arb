@@ -8,5 +8,6 @@
     "sortGalleryDescription" : "The images will be sorted",
     "closeView" : "Stop viewing",
     "changeLocale" : "Change locale/language",
-    "exit" : "Exit"
+    "exit" : "Exit",
+    "clearLastPathContents" : "Close file list"
 }

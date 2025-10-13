@@ -8,5 +8,6 @@
     "sortGalleryDescription" : "Các hình ảnh sẽ được sắp xếp theo tên của tập tin",
     "closeView" : "Ngừng xem",
     "changeLocale" : "Đổi ngôn ngữ",
-    "exit" : "Thoát"
+    "exit" : "Thoát",
+    "clearLastPathContents" : "Xóa danh sách tập tin"
 }

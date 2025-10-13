@@ -151,6 +151,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit'**
   String get exit;
+
+  /// No description provided for @clearLastPathContents.
+  ///
+  /// In en, this message translates to:
+  /// **'Close file list'**
+  String get clearLastPathContents;
 }
 
 class _AppLocalizationsDelegate
