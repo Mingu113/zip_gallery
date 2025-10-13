@@ -60,18 +60,19 @@ class ZipImageReaderViewModel extends ChangeNotifier {
     kPrint("Set last path $path");
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(keyLastPath, path);
+    notifyListeners();
   }
 
-  Future<void> getDirectoryContent() async {
+  Future<void> getDirectoryContents() async {
     setLoading(true);
     kPrint("Get Directoory contents");
     await getLastUsedPath();
-    if (lastPath == null) {
+    if (lastPath == null || (lastPath ?? "").isEmpty) {
       setLoading(false);
       return;
     }
     Directory directory = Directory(lastPath!);
-    List<FileSystemEntity> contents = await directory.list().toList();
+    List<FileSystemEntity> contents = directory.listSync().toList();
     List<FileSystemEntity> result = [];
     for (var entity in contents) {
       if (isEntityAZip(entity)) {
@@ -79,6 +80,9 @@ class ZipImageReaderViewModel extends ChangeNotifier {
       }
     }
     lastPathContents = result;
+    kPrint(
+      "From ${directory.path} discovered ${contents.length} entities, got ${result.length} entities",
+    );
     setLoading(false);
   }
 
@@ -110,7 +114,10 @@ class ZipImageReaderViewModel extends ChangeNotifier {
       final bytes = await file.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
       await _extractImages(archive);
-      await setLastUsedPath(getPathName(filePath));
+      if (!(Platform.isAndroid || Platform.isIOS)) {
+        kPrint("Is on Desktop");
+        await setLastUsedPath(getPathName(filePath));
+      }
     } catch (e) {
       throw Exception("Error processing ZIP: ${e.toString()}");
     }
@@ -118,7 +125,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
 
   Future<void> clearImages() async {
     images.clear();
-    await getDirectoryContent();
+    await getDirectoryContents();
     notifyListeners();
   }
 
@@ -153,7 +160,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   }
 }
 
-void kPrint(Object message) {
+void kPrint(Object? message) {
   if (kDebugMode) print(message);
 }
 
@@ -169,7 +176,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
 
   @override
   void initState() {
-    _viewModel.getDirectoryContent();
+    _viewModel.getDirectoryContents();
     super.initState();
   }
 
@@ -206,6 +213,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
 
   Widget lastPathContentScreen() {
     List<FileSystemEntity> contents = _viewModel.lastPathContents ?? [];
+    kPrint(_viewModel.lastPath);
     kPrint(contents.length);
     return ListView.builder(
       itemCount: contents.length,
@@ -260,7 +268,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                       title: Text(AppLocalizations.of(context)!.chooseZIP),
                     ),
                   ),
-                  if (_viewModel.images.isNotEmpty)
+                  if (_viewModel.images.isNotEmpty) ...[
                     PopupMenuItem(
                       value: 'sort',
                       child: ListTile(
@@ -268,7 +276,6 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                         title: Text(AppLocalizations.of(context)!.sortGallery),
                       ),
                     ),
-                  if (_viewModel.images.isNotEmpty)
                     PopupMenuItem(
                       value: 'close',
                       child: ListTile(
@@ -276,6 +283,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                         title: Text(AppLocalizations.of(context)!.closeView),
                       ),
                     ),
+                  ],
                   if (_viewModel.images.isEmpty &&
                       (_viewModel.lastPathContents ?? []).isNotEmpty)
                     PopupMenuItem(
