@@ -35,6 +35,10 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? lastPath;
   List<FileSystemEntity>? lastPathContents;
+  bool get isReading => images.isNotEmpty;
+  String? _comicName;
+  String? get comicName => _comicName;
+  int get comicLength => images.length;
 
   // KEYWORDS:
   String get keyLastPath => "lastPath";
@@ -118,6 +122,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
         kPrint("Is on Desktop");
         await setLastUsedPath(getPathName(filePath));
       }
+      _comicName = getFileName(filePath);
     } catch (e) {
       throw Exception("Error processing ZIP: ${e.toString()}");
     }
@@ -215,9 +220,9 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
     List<FileSystemEntity> contents = _viewModel.lastPathContents ?? [];
     kPrint(_viewModel.lastPath);
     kPrint(contents.length);
-    return ListView.builder(
+    return SliverList.builder(
       itemCount: contents.length,
-      padding: EdgeInsets.only(bottom: 8),
+      // padding: EdgeInsets.only(bottom: 8),
       itemBuilder: (context, index) {
         String filePath = contents[index].path;
         return InkWell(
@@ -233,17 +238,19 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   Widget _ui(BuildContext context) {
     if (_viewModel.isLoading) {
       kPrint("Is loading");
-      return const Center(child: CircularProgressIndicator());
-    } else if (_viewModel.images.isEmpty) {
+      return SliverToBoxAdapter(child: const Center(child: CircularProgressIndicator()));
+    } else if (!_viewModel.isReading) {
       kPrint("Is empty");
       if (_viewModel.lastPath != null) {
         kPrint("Last path is not null");
         return lastPathContentScreen();
       }
-      return Center(
-        child: ElevatedButton(
-          onPressed: () async => await chooseZip(),
-          child: Text(AppLocalizations.of(context)!.chooseZIP),
+      return SliverToBoxAdapter(
+        child: Center(
+          child: ElevatedButton(
+            onPressed: () async => await chooseZip(),
+            child: Text(AppLocalizations.of(context)!.chooseZIP),
+          ),
         ),
       );
     } else {
@@ -255,92 +262,110 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.appTitle),
-        actions: [
-          PopupMenuButton(
-            itemBuilder:
-                (context) => [
-                  PopupMenuItem(
-                    value: 'zip',
-                    child: ListTile(
-                      leading: Icon(Icons.archive),
-                      title: Text(AppLocalizations.of(context)!.chooseZIP),
-                    ),
-                  ),
-                  if (_viewModel.images.isNotEmpty) ...[
-                    PopupMenuItem(
-                      value: 'sort',
-                      child: ListTile(
-                        leading: Icon(Icons.sort),
-                        title: Text(AppLocalizations.of(context)!.sortGallery),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'close',
-                      child: ListTile(
-                        leading: Icon(Icons.close),
-                        title: Text(AppLocalizations.of(context)!.closeView),
-                      ),
-                    ),
-                  ],
-                  if (_viewModel.images.isEmpty &&
-                      (_viewModel.lastPathContents ?? []).isNotEmpty)
-                    PopupMenuItem(
-                      value: 'clearLastPathContents',
-                      child: ListTile(
-                        leading: Icon(Icons.clear_all),
-                        title: Text(
-                          AppLocalizations.of(context)!.clearLastPathContents,
-                        ),
-                      ),
-                    ),
-                  PopupMenuItem(
-                    value: 'exit',
-                    child: ListTile(
-                      leading: Icon(Icons.exit_to_app),
-                      title: Text(AppLocalizations.of(context)!.exit),
-                    ),
-                  ),
-                  if (kDebugMode)
-                    PopupMenuItem(
-                      value: 'locale',
-                      child: ListTile(
-                        leading: Icon(Icons.language),
-                        title: Text(AppLocalizations.of(context)!.changeLocale),
-                      ),
-                    ),
-                ],
-            onSelected: (value) async {
-              switch (value) {
-                case 'zip':
-                  await chooseZip();
-                  break;
-                case 'close':
-                  _viewModel.clearImages();
-                  break;
-                case 'sort':
-                  _viewModel.sortImage();
-                  break;
-                case 'exit':
-                  SystemNavigator.pop();
-                  break;
-                case 'locale':
-                  _testChangeLocale(context);
-                  break;
-                case 'clearLastPathContents':
-                  await _viewModel.clearLastPathContents();
-                  break;
-              }
-            },
-            icon: const Icon(Icons.more_vert),
-          ),
-        ],
-      ),
       body: ListenableBuilder(
-        builder: (context, child) => _ui(context),
+        builder:
+            (context, child) => CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  pinned: true,
+                  stretch: true,
+                  expandedHeight: 150,
+                  leading: _viewModel.isReading ? Center(child: Text("${_viewModel.comicLength}")) : null,
+                  flexibleSpace: FlexibleSpaceBar(
+                    expandedTitleScale: 1,
+                    title: Text(
+                      _viewModel.isReading
+                          ? _viewModel._comicName!
+                          : AppLocalizations.of(context)!.appTitle,
+                    ),
+                  ),
+                  actions: [_appPopupMenuButton(context)],
+                ),
+                _ui(context),
+              ],
+            ),
         listenable: _viewModel,
       ),
+    );
+  }
+
+  PopupMenuButton<String> _appPopupMenuButton(BuildContext context) {
+    return PopupMenuButton(
+      itemBuilder:
+          (context) => [
+            PopupMenuItem(
+              value: 'zip',
+              child: ListTile(
+                leading: Icon(Icons.archive),
+                title: Text(AppLocalizations.of(context)!.chooseZIP),
+              ),
+            ),
+            if (_viewModel.isReading) ...[
+              PopupMenuItem(
+                value: 'sort',
+                child: ListTile(
+                  leading: Icon(Icons.sort),
+                  title: Text(AppLocalizations.of(context)!.sortGallery),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'close',
+                child: ListTile(
+                  leading: Icon(Icons.close),
+                  title: Text(AppLocalizations.of(context)!.closeView),
+                ),
+              ),
+            ],
+            if (!_viewModel.isReading &&
+                (_viewModel.lastPathContents ?? []).isNotEmpty)
+              PopupMenuItem(
+                value: 'clearLastPathContents',
+                child: ListTile(
+                  leading: Icon(Icons.clear_all),
+                  title: Text(
+                    AppLocalizations.of(context)!.clearLastPathContents,
+                  ),
+                ),
+              ),
+            PopupMenuItem(
+              value: 'exit',
+              child: ListTile(
+                leading: Icon(Icons.exit_to_app),
+                title: Text(AppLocalizations.of(context)!.exit),
+              ),
+            ),
+            if (kDebugMode)
+              PopupMenuItem(
+                value: 'locale',
+                child: ListTile(
+                  leading: Icon(Icons.language),
+                  title: Text(AppLocalizations.of(context)!.changeLocale),
+                ),
+              ),
+          ],
+      onSelected: (value) async {
+        switch (value) {
+          case 'zip':
+            await chooseZip();
+            break;
+          case 'close':
+            _viewModel.clearImages();
+            break;
+          case 'sort':
+            _viewModel.sortImage();
+            break;
+          case 'exit':
+            SystemNavigator.pop();
+            break;
+          case 'locale':
+            _testChangeLocale(context);
+            break;
+          case 'clearLastPathContents':
+            await _viewModel.clearLastPathContents();
+            break;
+        }
+      },
+      icon: const Icon(Icons.more_vert),
     );
   }
 
@@ -356,23 +381,19 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   }
 
   Widget _buildGallery() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 1,
-            crossAxisSpacing: 1,
-            mainAxisSpacing: 1,
-            childAspectRatio: 3 / 4,
-          ),
-          itemCount: _viewModel.images.length,
-          itemBuilder: (context, index) {
-            return ImageItemWidget(
-              image: _viewModel.images[index],
-              index: index,
-              onTap: () => openImage(context, index),
-            );
-          },
+    return SliverGrid.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 1,
+        crossAxisSpacing: 1,
+        mainAxisSpacing: 1,
+        childAspectRatio: 3 / 4,
+      ),
+      itemCount: _viewModel.comicLength,
+      itemBuilder: (context, index) {
+        return ImageItemWidget(
+          image: _viewModel.images[index],
+          index: index,
+          onTap: () => openImage(context, index),
         );
       },
     );
