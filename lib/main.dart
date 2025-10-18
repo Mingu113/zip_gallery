@@ -34,10 +34,12 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   List<ArchiveFile> images = [];
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-  String? lastPath;
+  String? _lastPath;
+  String? get lastPath => _lastPath;
   int _crossAxis = 1;
   int get crossAxis => _crossAxis;
-  List<FileSystemEntity>? lastPathContents;
+  List<FileSystemEntity>? _lastPathContents;
+  List<FileSystemEntity>? get lastPathContents => _lastPathContents;
   bool get isReading => images.isNotEmpty;
   String? _comicName;
   String? get comicName => _comicName;
@@ -61,7 +63,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
 
   Future<void> getLastUsedPath() async {
     final prefs = await SharedPreferences.getInstance();
-    lastPath = prefs.getString(keyLastPath);
+    _lastPath = prefs.getString(keyLastPath);
   }
 
   Future<void> setLastUsedPath(String path) async {
@@ -103,7 +105,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
         result.add(entity);
       }
     }
-    lastPathContents = result;
+    _lastPathContents = result;
     kPrint(
       "From ${directory.path} discovered ${contents.length} entities, got ${result.length} entities",
     );
@@ -152,7 +154,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   }
 
   Future<void> clearLastPathContents() async {
-    lastPath = null;
+    _lastPath = null;
     await setLastUsedPath("");
     lastPathContents?.clear();
     notifyListeners();
@@ -170,7 +172,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   }
 
   Future<void> clearCache() async {
-    if(!(Platform.isAndroid || Platform.isIOS)) return;
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
     kPrint("Delete temp cache");
     Directory tempDir = await getTemporaryDirectory();
     if (kDebugMode) {
