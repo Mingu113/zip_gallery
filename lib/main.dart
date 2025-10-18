@@ -372,17 +372,17 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                 ),
               ),
             PopupMenuItem(
-              value: 'exit',
-              child: ListTile(
-                leading: Icon(Icons.exit_to_app),
-                title: Text(AppLocalizations.of(context)!.exit),
-              ),
-            ),
-            PopupMenuItem(
               value: 'showCrossAxisSlider',
               child: ListTile(
                 leading: Icon(Icons.onetwothree),
                 title: Text(AppLocalizations.of(context)!.showAxisCountDialog),
+              ),
+            ),
+            PopupMenuItem(
+              value: 'exit',
+              child: ListTile(
+                leading: Icon(Icons.exit_to_app),
+                title: Text(AppLocalizations.of(context)!.exit),
               ),
             ),
             if (kDebugMode)
