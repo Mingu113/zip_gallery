@@ -31,23 +31,10 @@ class MyApp extends StatelessWidget {
 }
 
 
-class ZipImageReaderView extends StatefulWidget {
-  const ZipImageReaderView({super.key});
+class ZipImageReaderView extends StatelessWidget {
+  ZipImageReaderView({super.key});
 
-  @override
-  State<ZipImageReaderView> createState() => _ZipImageReaderViewState();
-}
-
-class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   final ZipImageReaderViewModel _viewModel = ZipImageReaderViewModel();
-
-  @override
-  void initState() {
-    _viewModel.clearCache();
-    _viewModel.getDirectoryContents();
-    _viewModel.getCrossAxis();
-    super.initState();
-  }
 
   // void showSnackBar(String message) {
   void _testChangeLocale(BuildContext context) {
@@ -100,12 +87,12 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   }
 
   Widget _ui(BuildContext context) {
-    if (_viewModel.isLoading) {
+    if (_viewModel.isLoading || !_viewModel.isInitialized) {
       kPrint("Is loading");
       return SliverToBoxAdapter(
         child: const Center(child: CircularProgressIndicator()),
       );
-    } else if (!_viewModel.isReading) {
+    } else if (!_viewModel.hasImages) {
       kPrint("Is empty");
       if (_viewModel.lastPath != null) {
         kPrint("Last path is not null");
@@ -140,13 +127,13 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                     stretch: true,
                     expandedHeight: 150,
                     leading:
-                        _viewModel.isReading
+                        _viewModel.hasImages
                             ? Center(child: Text("${_viewModel.comicLength}"))
                             : null,
                     flexibleSpace: FlexibleSpaceBar(
                       expandedTitleScale: 1,
                       title: Text(
-                        _viewModel.isReading
+                        _viewModel.hasImages
                             ? _viewModel.comicName!
                             : AppLocalizations.of(context)!.appTitle,
                       ),
@@ -173,7 +160,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                 title: Text(AppLocalizations.of(context)!.chooseZIP),
               ),
             ),
-            if (_viewModel.isReading) ...[
+            if (_viewModel.hasImages) ...[
               PopupMenuItem(
                 value: 'sort',
                 child: ListTile(
@@ -189,7 +176,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                 ),
               ),
             ],
-            if (!_viewModel.isReading &&
+            if (!_viewModel.hasImages &&
                 (_viewModel.lastPathContents ?? []).isNotEmpty)
               PopupMenuItem(
                 value: 'clearLastPathContents',
@@ -247,7 +234,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
           case 'showCrossAxisSlider':
             await showDialog(
               context: context,
-              builder: (context) => _crossAxisDialog(),
+              builder: (context) => _crossAxisDialog(context),
             );
             break;
         }
@@ -256,7 +243,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
     );
   }
 
-  SimpleDialog _crossAxisDialog() {
+  SimpleDialog _crossAxisDialog(BuildContext context) {
     return SimpleDialog(
       title: Text(AppLocalizations.of(context)!.showAxisCountDialog),
       contentPadding: EdgeInsetsGeometry.all(10),

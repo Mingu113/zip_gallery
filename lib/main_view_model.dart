@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ZipImageReaderViewModel extends ChangeNotifier {
   List<ArchiveFile> images = [];
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
   bool _isLoading = false;
   bool get isLoading => _isLoading;
   String? _lastPath;
@@ -14,15 +16,37 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   int get crossAxis => _crossAxis;
   List<FileSystemEntity>? _lastPathContents;
   List<FileSystemEntity>? get lastPathContents => _lastPathContents;
-  bool get isReading => images.isNotEmpty;
+  bool get hasImages => images.isNotEmpty;
   String? _comicName;
   String? get comicName => _comicName;
   int get comicLength => images.length;
   bool get isDebug => kDebugMode;
+  bool get hasLastPath => lastPath != null && (lastPath ?? "").isNotEmpty;
+  bool get isMobile => Platform.isAndroid || Platform.isIOS;
+  bool get isDesktop => !isMobile;
 
   // KEYWORDS:
   String get keyLastPath => "lastPath";
   String get keyGridCrossAxis => "axisCross";
+
+  // Oh my god it's actually works how?
+  ZipImageReaderViewModel() {
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    kPrint("Init View model");
+    setLoading(true);
+    await Future.wait([
+      clearCache(),
+      getDirectoryContents(),
+      getCrossAxis(),
+    ]).then((value) {
+      _isInitialized = true;
+      setLoading(false);
+    });
+    kPrint("View model initialized");
+  }
 
   @override
   void notifyListeners() {
@@ -42,7 +66,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   }
 
   Future<void> setLastUsedPath(String path) async {
-    if (Platform.isAndroid || Platform.isIOS) return;
+    if (isMobile) return;
     kPrint("Set last path $path");
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(keyLastPath, path);
@@ -65,10 +89,10 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   }
 
   Future<void> getDirectoryContents() async {
-    setLoading(true);
     kPrint("Get Directoory contents");
+    setLoading(true);
     await getLastUsedPath();
-    if (lastPath == null || (lastPath ?? "").isEmpty) {
+    if (!hasLastPath) {
       setLoading(false);
       return;
     }
@@ -135,19 +159,26 @@ class ZipImageReaderViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /* Images should follow one standard, which means all the file name of one file are either integer or a string and number*/
   void sortImage() {
-    // Check if file's name is not in correct format (integer only)
-    if (int.tryParse(getFileName(images.first.name)) == null) return;
-    images.sort((a, b) {
-      int e1 = int.parse(getFileName(a.name));
-      int e2 = int.parse(getFileName(b.name));
-      return e1.compareTo(e2);
-    });
+    if (int.tryParse(getFileName(images.first.name)) != null) {
+      kPrint("Files name are integer");
+      images.sort((a, b) {
+        int e1 = int.parse(getFileName(a.name));
+        int e2 = int.parse(getFileName(b.name));
+        return e1.compareTo(e2);
+      });
+    } else {
+      kPrint("File names are string");
+      images.sort((a, b) {
+        return getFileName(a.name).compareTo(getFileName(b.name));
+      });
+    }
     notifyListeners();
   }
 
   Future<void> clearCache() async {
-    if (!(Platform.isAndroid || Platform.isIOS)) return;
+    if (isDesktop) return;
     kPrint("Delete temp cache");
     Directory tempDir = await getTemporaryDirectory();
     if (isDebug) {
