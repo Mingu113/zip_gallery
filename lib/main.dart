@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zip_gallery/l10n/app_localizations.dart';
 import 'package:photo_view/photo_view.dart';
@@ -61,6 +62,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   }
 
   Future<void> setLastUsedPath(String path) async {
+    if (Platform.isAndroid || Platform.isIOS) return;
     kPrint("Set last path $path");
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(keyLastPath, path);
@@ -118,10 +120,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
       final bytes = await file.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
       await _extractImages(archive);
-      if (!(Platform.isAndroid || Platform.isIOS)) {
-        kPrint("Is on Desktop");
-        await setLastUsedPath(getPathName(filePath));
-      }
+      await setLastUsedPath(getPathName(filePath));
       _comicName = getFileName(filePath);
     } catch (e) {
       throw Exception("Error processing ZIP: ${e.toString()}");
@@ -150,6 +149,19 @@ class ZipImageReaderViewModel extends ChangeNotifier {
       return e1.compareTo(e2);
     });
     notifyListeners();
+  }
+
+  Future<void> clearCache() async {
+    kPrint("Delete temp cache");
+    Directory tempDir = await getTemporaryDirectory();
+    if(kDebugMode) {
+      var size = tempDir
+          .listSync(recursive: true)
+          .toList()
+          .fold(0, (int sum, file) => sum += file.statSync().size);
+      kPrint("Temp cache is $size bytes in size");
+    }
+    tempDir.deleteSync(recursive: true);
   }
 
   static String getFileName(String filePath) {
@@ -181,6 +193,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
 
   @override
   void initState() {
+    _viewModel.clearCache();
     _viewModel.getDirectoryContents();
     super.initState();
   }
@@ -238,7 +251,9 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   Widget _ui(BuildContext context) {
     if (_viewModel.isLoading) {
       kPrint("Is loading");
-      return SliverToBoxAdapter(child: const Center(child: CircularProgressIndicator()));
+      return SliverToBoxAdapter(
+        child: const Center(child: CircularProgressIndicator()),
+      );
     } else if (!_viewModel.isReading) {
       kPrint("Is empty");
       if (_viewModel.lastPath != null) {
@@ -261,30 +276,37 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: ListenableBuilder(
-        builder:
-            (context, child) => CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  stretch: true,
-                  expandedHeight: 150,
-                  leading: _viewModel.isReading ? Center(child: Text("${_viewModel.comicLength}")) : null,
-                  flexibleSpace: FlexibleSpaceBar(
-                    expandedTitleScale: 1,
-                    title: Text(
-                      _viewModel.isReading
-                          ? _viewModel._comicName!
-                          : AppLocalizations.of(context)!.appTitle,
+    return SafeArea(
+      bottom: true,
+      top: true,
+      child: Scaffold(
+        body: ListenableBuilder(
+          builder:
+              (context, child) => CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    pinned: true,
+                    stretch: true,
+                    expandedHeight: 150,
+                    leading:
+                        _viewModel.isReading
+                            ? Center(child: Text("${_viewModel.comicLength}"))
+                            : null,
+                    flexibleSpace: FlexibleSpaceBar(
+                      expandedTitleScale: 1,
+                      title: Text(
+                        _viewModel.isReading
+                            ? _viewModel._comicName!
+                            : AppLocalizations.of(context)!.appTitle,
+                      ),
                     ),
+                    actions: [_appPopupMenuButton(context)],
                   ),
-                  actions: [_appPopupMenuButton(context)],
-                ),
-                _ui(context),
-              ],
-            ),
-        listenable: _viewModel,
+                  _ui(context),
+                ],
+              ),
+          listenable: _viewModel,
+        ),
       ),
     );
   }
@@ -355,7 +377,8 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
             _viewModel.sortImage();
             break;
           case 'exit':
-            SystemNavigator.pop();
+            await _viewModel.clearCache();
+            await SystemNavigator.pop();
             break;
           case 'locale':
             _testChangeLocale(context);
