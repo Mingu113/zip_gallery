@@ -9,5 +9,7 @@
     "closeView" : "Stop viewing",
     "changeLocale" : "Change locale/language",
     "exit" : "Exit",
-    "clearLastPathContents" : "Close file list"
+    "clearLastPathContents" : "Close file list",
+    "axisCountDialog" : "Set Axis Count",
+    "showAxisCountDialog" : "Change Axis Count"
 }

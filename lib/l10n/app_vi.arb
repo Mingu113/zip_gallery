@@ -9,5 +9,7 @@
     "closeView" : "Ngừng xem",
     "changeLocale" : "Đổi ngôn ngữ",
     "exit" : "Thoát",
-    "clearLastPathContents" : "Xóa danh sách tập tin"
+    "clearLastPathContents" : "Xóa danh sách tập tin",
+    "axisCountDialog" : "Đổi số cột",
+    "showAxisCountDialog" : "Đổi số cột ảnh"
 }

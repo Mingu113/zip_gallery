@@ -157,6 +157,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close file list'**
   String get clearLastPathContents;
+
+  /// No description provided for @axisCountDialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Axis Count'**
+  String get axisCountDialog;
+
+  /// No description provided for @showAxisCountDialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Axis Count'**
+  String get showAxisCountDialog;
 }
 
 class _AppLocalizationsDelegate

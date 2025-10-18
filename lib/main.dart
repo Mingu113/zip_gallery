@@ -35,6 +35,8 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
   String? lastPath;
+  int _crossAxis = 1;
+  int get crossAxis => _crossAxis;
   List<FileSystemEntity>? lastPathContents;
   bool get isReading => images.isNotEmpty;
   String? _comicName;
@@ -43,6 +45,7 @@ class ZipImageReaderViewModel extends ChangeNotifier {
 
   // KEYWORDS:
   String get keyLastPath => "lastPath";
+  String get keyGridCrossAxis => "axisCross";
 
   @override
   void notifyListeners() {
@@ -67,6 +70,21 @@ class ZipImageReaderViewModel extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(keyLastPath, path);
     notifyListeners();
+  }
+
+  Future<void> getCrossAxis() async {
+    final prefs = await SharedPreferences.getInstance();
+    _crossAxis = prefs.getInt(keyGridCrossAxis) ?? 1;
+  }
+
+  Future<void> saveCrossAxis(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(keyGridCrossAxis, value);
+    notifyListeners();
+  }
+
+  void setCrossAxis(int value) {
+    _crossAxis = value;
   }
 
   Future<void> getDirectoryContents() async {
@@ -152,9 +170,10 @@ class ZipImageReaderViewModel extends ChangeNotifier {
   }
 
   Future<void> clearCache() async {
+    if(!(Platform.isAndroid || Platform.isIOS)) return;
     kPrint("Delete temp cache");
     Directory tempDir = await getTemporaryDirectory();
-    if(kDebugMode) {
+    if (kDebugMode) {
       var size = tempDir
           .listSync(recursive: true)
           .toList()
@@ -195,6 +214,7 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
   void initState() {
     _viewModel.clearCache();
     _viewModel.getDirectoryContents();
+    _viewModel.getCrossAxis();
     super.initState();
   }
 
@@ -356,6 +376,13 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
                 title: Text(AppLocalizations.of(context)!.exit),
               ),
             ),
+            PopupMenuItem(
+              value: 'showCrossAxisSlider',
+              child: ListTile(
+                leading: Icon(Icons.onetwothree),
+                title: Text(AppLocalizations.of(context)!.showAxisCountDialog),
+              ),
+            ),
             if (kDebugMode)
               PopupMenuItem(
                 value: 'locale',
@@ -386,9 +413,46 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
           case 'clearLastPathContents':
             await _viewModel.clearLastPathContents();
             break;
+          case 'showCrossAxisSlider':
+            await showDialog(
+              context: context,
+              builder: (context) => _crossAxisDialog(),
+            );
+            break;
         }
       },
       icon: const Icon(Icons.more_vert),
+    );
+  }
+
+  SimpleDialog _crossAxisDialog() {
+    return SimpleDialog(
+      title: Text(AppLocalizations.of(context)!.showAxisCountDialog),
+      contentPadding: EdgeInsetsGeometry.all(10),
+      children: [
+        Row(
+          children: [
+            Text("1"),
+            Expanded(
+              child: Slider.adaptive(
+                value: _viewModel.crossAxis.toDouble(),
+                max: 10,
+                min: 1,
+                divisions: 10,
+                label: _viewModel.crossAxis.toString(),
+                onChanged: (value) {
+                  _viewModel.setCrossAxis(value.toInt());
+                },
+                onChangeEnd: (value) async {
+                  await _viewModel.saveCrossAxis(value.toInt());
+                },
+              ),
+            ),
+            Text("10"),
+          ],
+        ),
+        CloseButton(onPressed: () => Navigator.pop(context)),
+      ],
     );
   }
 
@@ -405,8 +469,8 @@ class _ZipImageReaderViewState extends State<ZipImageReaderView> {
 
   Widget _buildGallery() {
     return SliverGrid.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 1,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: _viewModel.crossAxis,
         crossAxisSpacing: 1,
         mainAxisSpacing: 1,
         childAspectRatio: 3 / 4,

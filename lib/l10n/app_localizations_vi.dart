@@ -38,4 +38,10 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get clearLastPathContents => 'Xóa danh sách tập tin';
+
+  @override
+  String get axisCountDialog => 'Đổi số cột';
+
+  @override
+  String get showAxisCountDialog => 'Đổi số cột ảnh';
 }

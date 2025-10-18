@@ -37,4 +37,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearLastPathContents => 'Close file list';
+
+  @override
+  String get axisCountDialog => 'Set Axis Count';
+
+  @override
+  String get showAxisCountDialog => 'Change Axis Count';
 }
